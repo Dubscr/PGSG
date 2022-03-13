@@ -2,13 +2,13 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Tilemaps;
+using UnityEngine.UI;
 
 public class Interact : MonoBehaviour
 {
     [SerializeField] private Tile[] tileSet;
     [SerializeField] private Tile highlightTile;
-    [SerializeField] private Tilemap mainTilemap;
-    [SerializeField] private Tilemap highlightMap;
+    [SerializeField] private Tilemap mainTilemap, highlightMap, bgTilemap;
 
     [Space(5)]
 
@@ -23,21 +23,24 @@ public class Interact : MonoBehaviour
     [SerializeField] private AudioClip break_;
     [SerializeField] private float breakCooldown;
     [SerializeField] private Animator am;
+    [SerializeField] private Image image;
 
     private bool breakAble = true;
     private Vector3Int previous;
     private Vector3Int currentCell;
     private Vector3 mouse;
-
-
+    private TilemapRenderer tmr;
+    private float time;
+    private float startTime;
 
     void Start()
     {
-
+        
     }
 
     void Update()
     {
+        time -= Time.deltaTime;
         Controls();
         Highlight();
         PlaceDestroyBlock();
@@ -46,7 +49,7 @@ public class Interact : MonoBehaviour
     void Highlight()
     {
         float distance = Vector3.Distance(mouse, transform.position);
-        if (currentCell != previous && distance < maxRange)
+        if (currentCell != previous && distance < maxRange && mainTilemap.GetTile(currentCell) != null)
         {
             // set the new tile
             highlightMap.SetTile(currentCell, highlightTile);
@@ -56,11 +59,24 @@ public class Interact : MonoBehaviour
 
             // save the new position for next frame
             previous = currentCell;
-        } else if (distance > maxRange)
+        }
+        if (currentCell != previous && distance < maxRange)
+        {
+            // erase previous
+            highlightMap.SetTile(previous, null);
+
+            // save the new position for next frame
+            previous = currentCell;
+            if (bgTilemap.GetTile(currentCell) != null)
+            {
+                highlightMap.SetTile(currentCell, highlightTile);
+            }
+        }
+        else if (distance > maxRange || mainTilemap.GetTile(currentCell) == null && bgTilemap.GetTile(currentCell) == null)
         {
             highlightMap.SetTile(currentCell, null);
             highlightMap.SetTile(previous, null);
-        }
+        } 
     }
     void Controls()
     {
@@ -97,14 +113,65 @@ public class Interact : MonoBehaviour
             }
             
         }
-
-        //Destroy Block
-        if (Input.GetButton("Fire1") && breakAble && distance > minRange && distance < maxRange)
+        if (Input.GetButtonDown("Fire1") && distance < maxRange) 
         {
-            StartCoroutine(Break());
-        } else if (Input.GetButtonUp("Fire1"))
+            startTime = breakCooldown;
+        }
+        if (Input.GetButton("Fire1") && startTime > 0 && distance < maxRange)
         {
-            breakAble = true;
+            startTime -= Time.deltaTime;
+            image.fillAmount = (breakCooldown - startTime) * 2;
+            if(startTime < 0.01)
+            {
+                Break_();
+                startTime = breakCooldown;
+            }
+        } else
+        {
+            image.fillAmount = 0;
+        }
+    }
+    private void Break_()
+    {
+        if (mainTilemap.GetTile(currentCell) != null)
+        {
+            AS.clip = break_;
+            AS.Play();
+            if (mainTilemap.GetTile(currentCell).name == "Grass")
+            {
+                inventory[0]++;
+                mainTilemap.SetTile(currentCell, null);
+            }
+            else if (mainTilemap.GetTile(currentCell).name == "Dirt")
+            {
+                inventory[1]++;
+                mainTilemap.SetTile(currentCell, null);
+            }
+            else if (mainTilemap.GetTile(currentCell).name == "Stone")
+            {
+                inventory[2]++;
+                mainTilemap.SetTile(currentCell, null);
+            }
+        }
+        else
+        if (bgTilemap.GetTile(currentCell) != null)
+        {
+            AS.clip = break_;
+            AS.Play();
+            if (bgTilemap.GetTile(currentCell) != null)
+            {
+                if (bgTilemap.GetTile(currentCell).name == "Wood1")
+                {
+                    inventory[3]++;
+                    bgTilemap.SetTile(currentCell, null);
+                }
+                else
+            if (bgTilemap.GetTile(currentCell).name == "Leaf1")
+                {
+                    inventory[4]++;
+                    bgTilemap.SetTile(currentCell, null);
+                }
+            }
         }
     }
 
@@ -132,6 +199,26 @@ public class Interact : MonoBehaviour
             {
                 inventory[2]++;
                 mainTilemap.SetTile(currentCell, null);
+            }
+        }
+        else
+        if (bgTilemap.GetTile(currentCell) != null && !breakAble)
+        {
+            AS.clip = break_;
+            AS.Play();
+            if (bgTilemap.GetTile(currentCell) != null)
+            {
+                if (bgTilemap.GetTile(currentCell).name == "Wood1")
+                {
+                    inventory[3]++;
+                    bgTilemap.SetTile(currentCell, null);
+                }
+                else
+            if (bgTilemap.GetTile(currentCell).name == "Leaf1")
+                {
+                    inventory[4]++;
+                    bgTilemap.SetTile(currentCell, null);
+                }
             }
         }
 
